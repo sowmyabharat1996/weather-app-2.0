@@ -2,14 +2,70 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Weather 2.0</title>
-  </head>
-  <body>
-    <!-- THIS must exist -->
-    <div id="root"></div>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
 
-    <!-- THIS must point to your entry file -->
+    <!-- Basic SEO -->
+    <title>Weather 2.0 — Fast, Offline-Ready Weather PWA</title>
+    <meta
+      name="description"
+      content="Search weather by city with a fast, offline-ready PWA. Dark mode, responsive UI, and instant results. Built with React, Vite, Tailwind, and Open-Meteo."
+    />
+    <meta name="keywords" content="weather, forecast, React, Vite, PWA, Tailwind, Open-Meteo" />
+    <meta name="author" content="Weather 2.0" />
+
+    <!-- Theme colors (light/dark) for browsers / address bar -->
+    <meta name="theme-color" content="#0ea5e9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)" />
+
+    <!-- Open Graph / Social -->
+    <meta property="og:title" content="Weather 2.0 — Fast, Offline-Ready Weather PWA" />
+    <meta
+      property="og:description"
+      content="Search weather by city with a fast, offline-ready PWA. Dark mode, responsive UI, and instant results."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/pwa-512.png" />
+    <meta property="og:url" content="/" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Weather 2.0 — Fast, Offline-Ready Weather PWA" />
+    <meta
+      name="twitter:description"
+      content="Search weather by city with a fast, offline-ready PWA. Dark mode, responsive UI, and instant results."
+    />
+    <meta name="twitter:image" content="/pwa-512.png" />
+
+    <!-- Favicon / PWA icons -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/pwa-192.png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/pwa-512.png" sizes="512x512" />
+
+    <!-- PWA: vite-plugin-pwa will inject the manifest & sw registration -->
+    <!-- No manual <link rel="manifest"> needed when using VitePWA -->
+
+    <!-- Preconnect (optional micro-optimizations for API calls) -->
+    <link rel="preconnect" href="https://geocoding-api.open-meteo.com" />
+    <link rel="preconnect" href="https://api.open-meteo.com" />
+  </head>
+
+  <body class="antialiased">
+    <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+
+    <!-- JSON-LD structured data (optional) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Weather 2.0",
+        "applicationCategory": "Weather",
+        "operatingSystem": "Web",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
   </body>
 </html>

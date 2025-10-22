@@ -1,3 +1,25 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+/* Animated gradient background using CSS variables set by React */
+.bg-animated,
+.dark .bg-animated-dark {
+  --g1: var(--grad-1, linear-gradient(135deg,#bae6fd,#7dd3fc));
+  --g2: var(--grad-2, linear-gradient(135deg,#0ea5e9,#38bdf8));
+  background-image: var(--g1), var(--g2);
+  background-blend-mode: overlay;
+  background-size: 180% 180%;
+  animation: bg-move 18s ease-in-out infinite alternate;
+}
+
+/* slightly darker default for dark mode before temp arrives */
+.dark .bg-animated-dark {
+  --g1: var(--grad-1, linear-gradient(135deg,#0f172a,#111827));
+  --g2: var(--grad-2, linear-gradient(135deg,#0b3b5e,#0a4e76));
+}
+
+@keyframes bg-move {
+  0%   { background-position: 0% 0%;   }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 50% 100%; }
+}
