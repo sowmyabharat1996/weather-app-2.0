@@ -10,13 +10,27 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.png', 'pwa-192.png', 'pwa-512.png', 'vite.svg'],
       manifest: {
+        screenshots: [
+          {
+            src: '/pwa-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            form_factor: 'wide'
+          },
+          {
+            src: '/pwa-192.png',
+            sizes: '192x192',
+            type: 'image/png',
+            form_factor: 'narrow'
+          }
+        ],
         name: 'Weather App',
         short_name: 'Weather',
-        description: 'Search weather by city with a fast, offline-ready PWA. Dark mode, dynamic backgrounds, and live temperature colors.',
+        description:
+          'Search weather by city with a fast, offline-ready PWA. Dark mode, dynamic backgrounds, and live temperature colors.',
         theme_color: '#ffffff',
         background_color: '#ffffff',
         display: 'standalone',
-        scope: '/',
         start_url: '/',
         icons: [
           {
@@ -30,10 +44,11 @@ export default defineConfig({
             type: 'image/png'
           },
           {
+            // ✅ Android adaptive icon (maskable)
             src: '/pwa-512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'maskable any'
           }
         ]
       },
