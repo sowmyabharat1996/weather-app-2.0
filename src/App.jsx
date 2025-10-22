@@ -9,9 +9,7 @@ function StatusPill({ isOnline, fromCache, text }) {
     ? "bg-sky-600/90"
     : "bg-emerald-600/90";
   return (
-    <div
-      className={`fixed bottom-4 right-4 z-50 px-3 py-1 rounded-full text-sm text-white shadow-lg ${color}`}
-    >
+    <div className={`fixed bottom-4 right-4 z-50 px-3 py-1 rounded-full text-sm text-white shadow-lg ${color}`}>
       {text}
     </div>
   );
@@ -54,22 +52,17 @@ async function fetchWithCacheFallback(url, cacheName) {
     if ("caches" in window) {
       const cache = await caches.open(cacheName);
       const cached = await cache.match(url);
-      if (cached) {
-        return { data: await cached.json(), fromCache: true };
-      }
+      if (cached) return { data: await cached.json(), fromCache: true };
     }
     throw new Error("Offline & no cached response");
   }
 }
 
-/* ---------- App ---------- */
 export default function App() {
   const [query, setQuery] = useState("");
   const [weather, setWeather] = useState(null);
 
-  const [isOnline, setIsOnline] = useState(
-    typeof navigator !== "undefined" ? navigator.onLine : true
-  );
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const [fromCache, setFromCache] = useState(false);
   const [statusText, setStatusText] = useState("");
 
@@ -88,7 +81,7 @@ export default function App() {
   /* Apply/remove <html class="dark"> and update <meta theme-color> */
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
-    const meta = document.querySelector('meta#theme-color');
+    const meta = document.querySelector("meta#theme-color");
     if (meta) meta.setAttribute("content", isDark ? "#111827" : "#ffffff");
   }, [isDark]);
 
@@ -111,7 +104,7 @@ export default function App() {
     return () => clearTimeout(t);
   }, [statusText]);
 
-  /* Detect standalone / install events (Android + iOS) */
+  /* Detect standalone / install events (Android + iOS guidance) */
   useEffect(() => {
     const standalone =
       window.matchMedia?.("(display-mode: standalone)")?.matches ||
@@ -158,10 +151,7 @@ export default function App() {
       if (isOnline && lastRequestRef.current) {
         try {
           setIsSyncing(true);
-          const { data } = await fetchWithCacheFallback(
-            lastRequestRef.current,
-            "weather-api-cache"
-          );
+          const { data } = await fetchWithCacheFallback(lastRequestRef.current, "weather-api-cache");
           setWeather(data);
           setFromCache(false);
           setStatusText("Back online — updated");
@@ -195,29 +185,15 @@ export default function App() {
       `?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m`;
     lastRequestRef.current = url;
 
-    setStatusText(
-      isOnline ? "Fetching latest…" : "Offline: showing last saved data if available"
-    );
+    setStatusText(isOnline ? "Fetching latest…" : "Offline: showing last saved data if available");
     setIsSyncing(true);
 
     try {
-      const { data, fromCache: cached } = await fetchWithCacheFallback(
-        url,
-        "weather-api-cache"
-      );
+      const { data, fromCache: cached } = await fetchWithCacheFallback(url, "weather-api-cache");
       setWeather(data);
       setFromCache(cached);
-      localStorage.setItem(
-        "lastWeather",
-        JSON.stringify({ url, payload: data, ts: Date.now() })
-      );
-      setStatusText(
-        !isOnline
-          ? "Offline: showing last saved data"
-          : cached
-          ? "Loaded from cache"
-          : "Live update"
-      );
+      localStorage.setItem("lastWeather", JSON.stringify({ url, payload: data, ts: Date.now() }));
+      setStatusText(!isOnline ? "Offline: showing last saved data" : cached ? "Loaded from cache" : "Live update");
       setLastUpdated(Date.now());
     } catch {
       const last = localStorage.getItem("lastWeather");
@@ -228,9 +204,7 @@ export default function App() {
         setStatusText("Loaded last result (local)");
         setLastUpdated(ts || Date.now());
       } else {
-        setStatusText(
-          !isOnline ? "Offline & no saved data yet" : "Couldn’t load weather"
-        );
+        setStatusText(!isOnline ? "Offline & no saved data yet" : "Couldn’t load weather");
       }
     } finally {
       setIsSyncing(false);
@@ -242,10 +216,7 @@ export default function App() {
     if (!lastRequestRef.current) return;
     setIsSyncing(true);
     try {
-      const { data } = await fetchWithCacheFallback(
-        lastRequestRef.current,
-        "weather-api-cache"
-      );
+      const { data } = await fetchWithCacheFallback(lastRequestRef.current, "weather-api-cache");
       setWeather(data);
       setFromCache(false);
       setStatusText("Live update");
@@ -272,14 +243,12 @@ export default function App() {
   const tempC = weather?.current_weather?.temperature ?? null;
   const bg = gradientFromTemp(tempC, isDark);
 
-  /* ---------- Render ---------- */
   return (
-    <div
-      className={`min-h-screen ${bg} text-gray-900 dark:text-white transition-colors safe-area`}
-    >
+    <div className={`min-h-screen ${bg} text-gray-900 dark:text-white transition-colors safe-area`}>
       <div className="max-w-4xl mx-auto p-6">
-        {/* Header */}
-        <header className="flex flex-wrap items-center justify-between gap-3 mb-6">
+        {/* Header: responsive grid to prevent overlap */}
+        <header className="grid gap-3 mb-6 md:grid-cols-2 md:items-center">
+          {/* Title block */}
           <div className="flex items-center gap-2">
             <img src="/app-192.png" alt="logo" className="h-8 w-8 rounded-lg" />
             <h1 className="text-3xl sm:text-4xl font-bold flex items-center gap-1">
@@ -287,7 +256,8 @@ export default function App() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Button block */}
+          <div className="flex items-center gap-3 justify-end">
             {isInstallable && !isStandalone && (
               <button
                 onClick={handleInstallClick}
@@ -297,7 +267,6 @@ export default function App() {
                 ⬇️ Install
               </button>
             )}
-
             <button
               onClick={() => setIsDark((v) => !v)}
               className="px-3 py-1.5 rounded-lg text-sm bg-gray-200 text-gray-900 dark:bg-gray-700 dark:text-white shadow transition shrink-0"
@@ -329,19 +298,16 @@ export default function App() {
         <div className="mt-6 bg-white/80 dark:bg-white/10 backdrop-blur rounded-2xl p-5 shadow-xl ring-1 ring-black/5 dark:ring-white/10">
           {weather ? (
             <>
-              <div className="text-5xl font-extrabold">
-                {Math.round(tempC)}°C
-              </div>
+              <div className="text-5xl font-extrabold">{Math.round(tempC)}°C</div>
               <div className="mt-2 opacity-90 text-sm">
-                Wind: {weather.current_weather?.windspeed ?? "--"} km/h ·
+                Wind: {weather.current_weather?.windspeed ?? "--"} km/h ·{" "}
                 Direction: {weather.current_weather?.winddirection ?? "--"}°
               </div>
 
               {/* Last updated + manual refresh */}
               <div className="mt-3 flex items-center gap-3 text-xs opacity-75">
                 <span>
-                  Updated:{" "}
-                  {lastUpdated ? new Date(lastUpdated).toLocaleString() : "—"}
+                  Updated: {lastUpdated ? new Date(lastUpdated).toLocaleString() : "—"}
                 </span>
                 <button
                   onClick={refreshWeather}
@@ -369,9 +335,7 @@ export default function App() {
               </div>
             </>
           ) : (
-            <div className="opacity-80">
-              Try: Visakhapatnam, Hyderabad, Delhi…
-            </div>
+            <div className="opacity-80">Try: Visakhapatnam, Hyderabad, Delhi…</div>
           )}
         </div>
       </div>
