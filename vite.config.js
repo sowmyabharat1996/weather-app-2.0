@@ -2,7 +2,6 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
@@ -11,18 +10,8 @@ export default defineConfig({
       includeAssets: ['favicon.png', 'pwa-192.png', 'pwa-512.png', 'vite.svg'],
       manifest: {
         screenshots: [
-          {
-            src: '/pwa-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            form_factor: 'wide'
-          },
-          {
-            src: '/pwa-192.png',
-            sizes: '192x192',
-            type: 'image/png',
-            form_factor: 'narrow'
-          }
+          { src: '/pwa-512.png', sizes: '512x512', type: 'image/png', form_factor: 'wide' },
+          { src: '/pwa-192.png', sizes: '192x192', type: 'image/png', form_factor: 'narrow' }
         ],
         name: 'Weather App',
         short_name: 'Weather',
@@ -33,43 +22,31 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/',
         icons: [
-          {
-            src: '/pwa-192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: '/pwa-512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          },
-          {
-            // ✅ Android adaptive icon (maskable)
-            src: '/pwa-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable any'
-          }
+          { src: '/pwa-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/pwa-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable any' }
         ]
       },
       workbox: {
         runtimeCaching: [
           {
+            // Weather API: serve cached immediately, refresh in background
             urlPattern: /^https:\/\/api\.open-meteo\.com\/.*/i,
-            handler: 'NetworkFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'weather-api-cache',
-              expiration: { maxEntries: 50, maxAgeSeconds: 3600 },
-              networkTimeoutSeconds: 5
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 6 },
+              cacheableResponse: { statuses: [0, 200] }
             }
           },
           {
+            // Geocoding API
             urlPattern: /^https:\/\/geocoding-api\.open-meteo\.com\/.*/i,
-            handler: 'NetworkFirst',
+            handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'geocoding-cache',
-              expiration: { maxEntries: 50, maxAgeSeconds: 3600 },
-              networkTimeoutSeconds: 5
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 },
+              cacheableResponse: { statuses: [0, 200] }
             }
           }
         ]

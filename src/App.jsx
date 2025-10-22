@@ -1,166 +1,175 @@
-import { useEffect, useRef, useState } from "react";
-import ThemeToggle from "./ThemeToggle";
+import React, { useEffect, useRef, useState } from "react";
+
+// --- Little status pill shown in bottom-right ---
+function StatusPill({ isOnline, fromCache, text }) {
+  if (!text) return null;
+  const color = !isOnline
+    ? "bg-amber-500/90"
+    : fromCache
+    ? "bg-sky-600/90"
+    : "bg-emerald-600/90";
+  return (
+    <div className={`fixed bottom-4 right-4 z-50 px-3 py-1 rounded-full text-sm text-white shadow-lg ${color}`}>
+      {text}
+    </div>
+  );
+}
+
+// Helper: map temp to a nice gradient
+function bgFromTemp(tC) {
+  if (tC == null) return "from-slate-900 via-slate-800 to-slate-900";
+  if (tC <= 10)   return "from-sky-900 via-sky-800 to-cyan-800";
+  if (tC <= 20)   return "from-teal-800 via-sky-700 to-cyan-700";
+  if (tC <= 28)   return "from-indigo-800 via-purple-700 to-violet-700";
+  if (tC <= 34)   return "from-orange-600 via-amber-500 to-yellow-500";
+  return            "from-red-700 via-orange-600 to-amber-600";
+}
+
+// Cache-aware fetch: returns last cached JSON when offline
+async function fetchWithCacheFallback(url, cacheName) {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Network error");
+    return { data: await res.json(), fromCache: false };
+  } catch (err) {
+    if ("caches" in window) {
+      const cache = await caches.open(cacheName);
+      const cached = await cache.match(url);
+      if (cached) {
+        return { data: await cached.json(), fromCache: true };
+      }
+    }
+    throw err;
+  }
+}
 
 export default function App() {
   const [query, setQuery] = useState("");
-  const [city, setCity] = useState(null);
-  const [wx, setWx] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState("");
+  const [weather, setWeather] = useState(null);
+  const [statusText, setStatusText] = useState("");
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [fromCache, setFromCache] = useState(false);
+  const lastRequestRef = useRef(null);
 
-  // Debounce timer ref
-  const t = useRef(null);
-
-  // Auto-search after user stops typing (600ms)
+  // Network listeners
   useEffect(() => {
-    if (!query || query.trim().length < 3) return;
-    if (t.current) clearTimeout(t.current);
-    t.current = setTimeout(() => {
-      fetchWeather(); // no event needed
-    }, 600);
-    return () => clearTimeout(t.current);
-  }, [query]);
+    const on  = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
+    };
+  }, []);
 
-  async function fetchWeather(e) {
-    e?.preventDefault();
-    setErr("");
-    setWx(null);
-    setCity(null);
-    if (!query.trim()) return;
+  // Auto-refresh when online again (re-fetch last URL silently)
+  useEffect(() => {
+    (async () => {
+      if (isOnline && lastRequestRef.current) {
+        try {
+          const { data } = await fetchWithCacheFallback(lastRequestRef.current, "weather-api-cache");
+          setWeather(data);
+          setFromCache(false);
+          setStatusText("Back online — updated");
+        } catch {/* ignore */}
+      } else if (!isOnline) {
+        setStatusText("Offline mode — showing last saved data");
+      }
+    })();
+  }, [isOnline]);
+
+  // Geocode city → coords
+  async function geocodeCity(name) {
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(name)}&count=1&language=en&format=json`;
+    const { data } = await fetchWithCacheFallback(url, "geocoding-cache");
+    if (!data?.results?.length) throw new Error("City not found");
+    const r = data.results[0];
+    return { lat: r.latitude, lon: r.longitude, label: `${r.name}, ${r.admin1 || r.country || ""}`.replace(/, $/, "") };
+  }
+
+  // Fetch weather for coords
+  async function loadWeatherByCoords(lat, lon) {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m`;
+    lastRequestRef.current = url;
+    setStatusText(isOnline ? "Fetching latest…" : "Offline: showing last saved data if available");
 
     try {
-      setLoading(true);
-
-      // 1) geocode
-      const geoRes = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
-          query
-        )}&count=1&language=en&format=json`
-      );
-      const geo = await geoRes.json();
-      if (!geo?.results?.length) {
-        setErr("City not found");
-        setLoading(false);
-        return;
-      }
-      const place = geo.results[0];
-      setCity({ name: place.name, country: place.country, admin: place.admin1 });
-
-      // 2) weather
-      const wxRes = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&current_weather=true&windspeed_unit=kmh`
-      );
-      const data = await wxRes.json();
-      setWx(data.current_weather);
+      const { data, fromCache: cached } = await fetchWithCacheFallback(url, "weather-api-cache");
+      setWeather(data);
+      setFromCache(cached);
+      localStorage.setItem("lastWeather", JSON.stringify({ url, payload: data, ts: Date.now() }));
+      setStatusText(!isOnline ? "Offline: showing last saved data" : cached ? "Loaded from cache" : "Live update");
     } catch {
-      setErr("Unable to fetch weather");
-    } finally {
-      setLoading(false);
+      const last = localStorage.getItem("lastWeather");
+      if (last) {
+        const { payload } = JSON.parse(last);
+        setWeather(payload);
+        setFromCache(true);
+        setStatusText("Loaded last result (local)");
+      } else {
+        setStatusText(!isOnline ? "Offline & no saved data yet" : "Couldn’t load weather");
+      }
     }
   }
 
-  // -------- Animated gradient colors by temperature ----------
-  function getGradientForTemp(tempC) {
-    // Fallback when we don't have weather yet
-    if (tempC == null) {
-      return {
-        g1: "linear-gradient(135deg, #bae6fd 0%, #7dd3fc 100%)",
-        g2: "linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%)",
-      };
+  // On submit: geocode then fetch weather
+  async function onSearch(e) {
+    e.preventDefault();
+    if (!query.trim()) return;
+    try {
+      const { lat, lon } = await geocodeCity(query.trim());
+      await loadWeatherByCoords(lat, lon);
+    } catch (e2) {
+      setStatusText(e2.message || "Search failed");
     }
-    if (tempC <= 14) {
-      // cold → blues
-      return {
-        g1: "linear-gradient(135deg, #93c5fd 0%, #60a5fa 100%)",
-        g2: "linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%)",
-      };
-    } else if (tempC <= 27) {
-      // mild → teal/green
-      return {
-        g1: "linear-gradient(135deg, #34d399 0%, #22c55e 100%)",
-        g2: "linear-gradient(135deg, #14b8a6 0%, #06b6d4 100%)",
-      };
-    }
-    // warm → orange/pink
-    return {
-      g1: "linear-gradient(135deg, #fb923c 0%, #f97316 100%)",
-      g2: "linear-gradient(135deg, #fb7185 0%, #f43f5e 100%)",
-    };
   }
 
-  const grads = getGradientForTemp(wx?.temperature);
+  const tempC = weather?.current_weather?.temperature ?? null;
+  const bg = bgFromTemp(tempC);
 
   return (
-    <div
-      className="min-h-screen bg-animated dark:bg-animated-dark text-slate-800 dark:text-slate-100"
-      style={
-        {
-          // CSS variables consumed by the animated bg class
-          "--grad-1": grads.g1,
-          "--grad-2": grads.g2,
-        }
-      }
-    >
-      <div className="max-w-3xl mx-auto px-4 py-10">
-        <div className="bg-white/90 dark:bg-slate-800/90 rounded-2xl shadow-xl p-6 transition-colors duration-300">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <span>🌤️ Weather</span>
-              <span className="text-sm font-medium text-slate-500 dark:text-slate-300">
-                2.0
-              </span>
-            </h1>
-            <ThemeToggle />
-          </div>
+    <div className={`min-h-screen bg-gradient-to-br ${bg} text-white`}>
+      <div className="max-w-4xl mx-auto p-6">
+        <header className="flex items-center justify-between mb-6">
+          <h1 className="text-3xl sm:text-4xl font-bold flex items-center gap-3">
+            <img src="/pwa-192.png" alt="logo" className="h-8 w-8 rounded-lg" />
+            Weather <span className="opacity-70 text-lg">2.0</span>
+          </h1>
+        </header>
 
-          {/* Search */}
-          <form onSubmit={fetchWeather} className="mt-2 flex gap-3">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search city (e.g., Hyderabad)"
-              className="flex-1 rounded-lg border border-slate-300 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-sky-400 dark:bg-slate-700 dark:border-slate-600 dark:placeholder-slate-300"
-            />
-            <button
-              disabled={loading}
-              className="rounded-lg bg-sky-600 text-white px-5 py-3 hover:bg-sky-700 disabled:opacity-60"
-            >
-              {loading ? "Loading..." : "Search"}
-            </button>
-          </form>
+        <form onSubmit={onSearch} className="flex gap-3">
+          <input
+            className="flex-1 rounded-xl px-4 py-3 text-gray-900 placeholder-gray-500 outline-none"
+            placeholder="Search city (e.g., Hyderabad)"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <button className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 font-semibold">
+            Search
+          </button>
+        </form>
 
-          {/* Error */}
-          {err && <p className="mt-4 text-rose-500">{err}</p>}
-
-          {/* Results */}
-          {city && wx && (
-            <div className="mt-8">
-              <h2 className="text-2xl font-semibold">
-                {city.name}
-                {city.admin ? `, ${city.admin}` : ""}, {city.country}
-              </h2>
-
-              <div className="mt-4 flex items-end gap-8">
-                <div className="text-6xl font-extrabold">
-                  {Math.round(wx.temperature)}°C
-                </div>
-                <div className="space-y-1 text-slate-600 dark:text-slate-300">
-                  <div>Wind: {wx.windspeed} km/h</div>
-                  <div>Direction: {wx.winddirection}°</div>
-                  <div>Updated: {new Date(wx.time).toLocaleString()}</div>
-                </div>
+        {/* Card */}
+        <div className="mt-6 bg-white/10 backdrop-blur rounded-2xl p-6 shadow-xl">
+          {weather ? (
+            <>
+              <div className="text-5xl font-extrabold">{Math.round(tempC)}°C</div>
+              <div className="mt-2 opacity-90 text-sm">
+                Wind: {weather.current_weather?.windspeed ?? "--"} km/h ·
+                Direction: {weather.current_weather?.winddirection ?? "--"}°
               </div>
-            </div>
-          )}
-
-          {!city && !loading && !err && (
-            <p className="mt-6 text-slate-500 dark:text-slate-400">
-              Try: Visakhapatnam, Hyderabad, Delhi…
-            </p>
+              <div className="mt-2 opacity-75 text-xs">
+                Updated: {new Date().toLocaleString()}
+              </div>
+            </>
+          ) : (
+            <div className="opacity-80">Search a city to see the weather.</div>
           )}
         </div>
       </div>
+
+      <StatusPill isOnline={isOnline} fromCache={fromCache} text={statusText} />
     </div>
   );
 }
