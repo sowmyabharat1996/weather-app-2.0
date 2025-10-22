@@ -1,6 +1,15 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html, body, #root { height: 100%; }
+.safe-area {
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+  padding-left: max(env(safe-area-inset-left), 0px);
+  padding-right: max(env(safe-area-inset-right), 0px);
+}
+
+
 /* Animated gradient background using CSS variables set by React */
 .bg-animated,
 .dark .bg-animated-dark {

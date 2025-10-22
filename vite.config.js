@@ -7,11 +7,14 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.png', 'pwa-192.png', 'pwa-512.png', 'vite.svg'],
+      includeAssets: ['favicon.png', 'app-192.png', 'app-512.png', 'vite.svg'],
       manifest: {
+        // Use ≥320px images as “screenshots” (not icons)
         screenshots: [
-          { src: '/pwa-512.png', sizes: '512x512', type: 'image/png', form_factor: 'wide' },
-          { src: '/pwa-192.png', sizes: '192x192', type: 'image/png', form_factor: 'narrow' }
+          // wide or portrait preview – use your 512 as a placeholder if you don’t have a real UI shot yet
+          { src: '/app-512.png', sizes: '512x512', type: 'image/png', form_factor: 'wide' },
+          // add another ≥320 asset (you can duplicate for now)
+          { src: '/app-512.png', sizes: '512x512', type: 'image/png', form_factor: 'narrow' }
         ],
         name: 'Weather App',
         short_name: 'Weather',
@@ -22,15 +25,16 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/',
         icons: [
-          { src: '/pwa-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/pwa-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable any' }
+          // normal (any) icons
+          { src: '/app-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/app-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          // separate maskable icon
+          { src: '/app-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       },
       workbox: {
         runtimeCaching: [
           {
-            // Weather API: serve cached immediately, refresh in background
             urlPattern: /^https:\/\/api\.open-meteo\.com\/.*/i,
             handler: 'StaleWhileRevalidate',
             options: {
@@ -40,7 +44,6 @@ export default defineConfig({
             }
           },
           {
-            // Geocoding API
             urlPattern: /^https:\/\/geocoding-api\.open-meteo\.com\/.*/i,
             handler: 'StaleWhileRevalidate',
             options: {
