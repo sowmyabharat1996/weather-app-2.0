@@ -351,4 +351,6 @@ export default function App() {
       <StatusPill isOnline={isOnline} fromCache={fromCache} text={statusText} />
     </div>
   );
+
+
 }
