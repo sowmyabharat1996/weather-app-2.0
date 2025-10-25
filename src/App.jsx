@@ -176,7 +176,7 @@ export default function App() {
 
   /* --- OpenWeather Geocode API --- */
   async function geocodeCity(name) {
-    const API_KEY = "YOUR_API_KEY_HERE"; // <-- replace with your OpenWeatherMap key
+    const API_KEY = "a1b2c3d4e5f6g7h8i9j0"; // <-- replace with your OpenWeatherMap key
     const url = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(
       name
     )}&limit=1&appid=${API_KEY}`;
@@ -260,7 +260,7 @@ export default function App() {
 
 /* --- OpenWeather Geocode API --- */
 async function geocodeCity(name) {
-  const API_KEY = "YOUR_API_KEY_HERE"; // <-- replace with your OpenWeatherMap key
+  const API_KEY = "a1b2c3d4e5f6g7h8i9j0"; // <-- replace with your OpenWeatherMap key
   const url = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(
     name
   )}&limit=1&appid=${API_KEY}`;
