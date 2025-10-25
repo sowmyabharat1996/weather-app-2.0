@@ -9,9 +9,7 @@ function StatusPill({ isOnline, fromCache, text }) {
     ? "bg-sky-600/90"
     : "bg-emerald-600/90";
   return (
-    <div
-      className={`fixed bottom-4 right-4 z-50 px-3 py-1 rounded-full text-sm text-white shadow-lg ${color}`}
-    >
+    <div className={`fixed bottom-4 right-4 z-50 px-3 py-1 rounded-full text-sm text-white shadow-lg ${color}`}>
       {text}
     </div>
   );
@@ -64,9 +62,7 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [weather, setWeather] = useState(null);
 
-  const [isOnline, setIsOnline] = useState(
-    typeof navigator !== "undefined" ? navigator.onLine : true
-  );
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
   const [fromCache, setFromCache] = useState(false);
   const [statusText, setStatusText] = useState("");
 
@@ -155,10 +151,7 @@ export default function App() {
       if (isOnline && lastRequestRef.current) {
         try {
           setIsSyncing(true);
-          const { data } = await fetchWithCacheFallback(
-            lastRequestRef.current,
-            "weather-api-cache"
-          );
+          const { data } = await fetchWithCacheFallback(lastRequestRef.current, "weather-api-cache");
           setWeather(data);
           setFromCache(false);
           setStatusText("Back online — updated");
@@ -174,49 +167,31 @@ export default function App() {
     })();
   }, [isOnline]);
 
-  /* --- OpenWeather Geocode API --- */
+  /* --- Free Open-Meteo Geocode API --- */
   async function geocodeCity(name) {
-    const API_KEY = "a1b2c3d4e5f6g7h8i9j0"; // <-- replace with your OpenWeatherMap key
-    const url = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
       name
-    )}&limit=1&appid=${API_KEY}`;
+    )}&count=1&language=en&format=json`;
     const { data } = await fetchWithCacheFallback(url, "geocoding-cache");
-    if (!data?.length) throw new Error("City not found");
-    const r = data[0];
-    return { lat: r.lat, lon: r.lon };
+    if (!data?.results?.length) throw new Error("City not found");
+    const r = data.results[0];
+    return { lat: r.latitude, lon: r.longitude };
   }
 
-  /* --- OpenWeather Main Weather API --- */
+  /* --- Free Open-Meteo Weather API --- */
   async function loadWeatherByCoords(lat, lon) {
-    const API_KEY = "YOUR_API_KEY_HERE"; // <-- replace with your OpenWeatherMap key
-    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`;
-
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
     lastRequestRef.current = url;
-    setStatusText(
-      isOnline
-        ? "Fetching latest…"
-        : "Offline: showing last saved data if available"
-    );
+
+    setStatusText(isOnline ? "Fetching latest…" : "Offline: showing last saved data if available");
     setIsSyncing(true);
 
     try {
-      const { data, fromCache: cached } = await fetchWithCacheFallback(
-        url,
-        "weather-api-cache"
-      );
+      const { data, fromCache: cached } = await fetchWithCacheFallback(url, "weather-api-cache");
       setWeather(data);
       setFromCache(cached);
-      localStorage.setItem(
-        "lastWeather",
-        JSON.stringify({ url, payload: data, ts: Date.now() })
-      );
-      setStatusText(
-        !isOnline
-          ? "Offline: showing last saved data"
-          : cached
-          ? "Loaded from cache"
-          : "Live update"
-      );
+      localStorage.setItem("lastWeather", JSON.stringify({ url, payload: data, ts: Date.now() }));
+      setStatusText(!isOnline ? "Offline: showing last saved data" : cached ? "Loaded from cache" : "Live update");
       setLastUpdated(Date.now());
     } catch {
       const last = localStorage.getItem("lastWeather");
@@ -227,9 +202,7 @@ export default function App() {
         setStatusText("Loaded last result (local)");
         setLastUpdated(ts || Date.now());
       } else {
-        setStatusText(
-          !isOnline ? "Offline & no saved data yet" : "Couldn’t load weather"
-        );
+        setStatusText(!isOnline ? "Offline & no saved data yet" : "Couldn’t load weather");
       }
     } finally {
       setIsSyncing(false);
@@ -241,37 +214,17 @@ export default function App() {
     if (!lastRequestRef.current) return;
     setIsSyncing(true);
     try {
-      const { data } = await fetchWithCacheFallback(
-        lastRequestRef.current,
-        "weather-api-cache"
-      );
+      const { data } = await fetchWithCacheFallback(lastRequestRef.current, "weather-api-cache");
       setWeather(data);
       setFromCache(false);
       setStatusText("Live update");
       setLastUpdated(Date.now());
     } catch {
-      setStatusText(
-        isOnline ? "Couldn’t refresh" : "Offline — using saved data"
-      );
+      setStatusText(isOnline ? "Couldn’t refresh" : "Offline — using saved data");
     } finally {
       setIsSyncing(false);
     }
   }
-
-/* --- OpenWeather Geocode API --- */
-async function geocodeCity(name) {
-  const API_KEY = "a1b2c3d4e5f6g7h8i9j0"; // <-- replace with your OpenWeatherMap key
-  const url = `https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(
-    name
-  )}&limit=1&appid=${API_KEY}`;
-  const { data } = await fetchWithCacheFallback(url, "geocoding-cache");
-  if (!data?.length) throw new Error("City not found");
-  const r = data[0];
-  return { lat: r.lat, lon: r.lon };
-}
-
-
-
 
   /* Search submit */
   async function onSearch(e) {
@@ -285,13 +238,11 @@ async function geocodeCity(name) {
     }
   }
 
-  const tempC = weather?.main?.temp ?? null;
+  const tempC = weather?.current_weather?.temperature ?? null;
   const bg = gradientFromTemp(tempC, isDark);
 
   return (
-    <div
-      className={`min-h-screen ${bg} text-gray-900 dark:text-white transition-colors safe-area`}
-    >
+    <div className={`min-h-screen ${bg} text-gray-900 dark:text-white transition-colors safe-area`}>
       <div className="max-w-4xl mx-auto p-6">
         {/* Header */}
         <header className="grid gap-3 mb-6 md:grid-cols-2 md:items-center">
@@ -333,23 +284,18 @@ async function geocodeCity(name) {
           </button>
         </form>
 
-        {/* Weather card */}
+        {/* Weather Card */}
         <div className="mt-6 bg-white/80 dark:bg-white/10 backdrop-blur rounded-2xl p-5 shadow-xl ring-1 ring-black/5 dark:ring-white/10">
           {weather ? (
             <>
-              <div className="text-5xl font-extrabold">
-                {Math.round(tempC)}°C
-              </div>
+              <div className="text-5xl font-extrabold">{Math.round(tempC)}°C</div>
               <div className="mt-2 opacity-90 text-sm">
-                Wind: {weather?.wind?.speed ?? "--"} km/h · Direction:{" "}
-                {weather?.wind?.deg ?? "--"}°
+                Wind: {weather?.current_weather?.windspeed ?? "--"} km/h · Direction:{" "}
+                {weather?.current_weather?.winddirection ?? "--"}°
               </div>
 
               <div className="mt-3 flex items-center gap-3 text-xs opacity-75">
-                <span>
-                  Updated:{" "}
-                  {lastUpdated ? new Date(lastUpdated).toLocaleString() : "—"}
-                </span>
+                <span>Updated: {lastUpdated ? new Date(lastUpdated).toLocaleString() : "—"}</span>
                 <button
                   onClick={refreshWeather}
                   className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white transition"
@@ -375,13 +321,12 @@ async function geocodeCity(name) {
               </div>
             </>
           ) : (
-            <div className="opacity-80">
-              Try: Visakhapatnam, Hyderabad, Delhi…
-            </div>
+            <div className="opacity-80">Try: Visakhapatnam, Hyderabad, Delhi…</div>
           )}
         </div>
       </div>
 
+      {/* iOS Add-to-Home-Screen tip */}
       {showIosTip && !isStandalone && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 px-3 py-2 rounded-lg text-xs bg-black/70 text-white shadow-md">
           iOS: Tap <span className="font-semibold">Share</span> →{" "}
