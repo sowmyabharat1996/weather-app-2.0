@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 
-/* ---------- Status pill ---------- */
+/* ---------- Status Pill ---------- */
 function StatusPill({ isOnline, fromCache, text }) {
   if (!text) return null;
   const color = !isOnline
@@ -9,13 +9,15 @@ function StatusPill({ isOnline, fromCache, text }) {
     ? "bg-sky-600/90"
     : "bg-emerald-600/90";
   return (
-    <div className={`fixed bottom-4 right-4 z-50 px-3 py-1 rounded-full text-sm text-white shadow-lg ${color}`}>
+    <div
+      className={`fixed bottom-4 right-4 z-50 px-3 py-1 rounded-full text-sm text-white shadow-lg ${color}`}
+    >
       {text}
     </div>
   );
 }
 
-/* ---------- Temp → gradient ---------- */
+/* ---------- Temperature → Gradient ---------- */
 function gradientFromTemp(tempC, isDark) {
   const light = [
     "bg-gradient-to-br from-sky-200 via-cyan-200 to-indigo-200",
@@ -61,11 +63,9 @@ async function fetchWithCacheFallback(url, cacheName) {
 export default function App() {
   const [query, setQuery] = useState("");
   const [weather, setWeather] = useState(null);
-
-  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [fromCache, setFromCache] = useState(false);
   const [statusText, setStatusText] = useState("");
-
   const [isDark, setIsDark] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -78,14 +78,14 @@ export default function App() {
 
   const lastRequestRef = useRef(null);
 
-  /* Apply/remove <html class="dark"> and update <meta theme-color> */
+  /* ---------- Theme sync ---------- */
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDark);
     const meta = document.querySelector("meta#theme-color");
     if (meta) meta.setAttribute("content", isDark ? "#111827" : "#ffffff");
   }, [isDark]);
 
-  /* Network listeners */
+  /* ---------- Network events ---------- */
   useEffect(() => {
     const on = () => setIsOnline(true);
     const off = () => setIsOnline(false);
@@ -97,14 +97,14 @@ export default function App() {
     };
   }, []);
 
-  /* Auto-hide status pill after 3s */
+  /* ---------- Status auto-hide ---------- */
   useEffect(() => {
     if (!statusText) return;
     const t = setTimeout(() => setStatusText(""), 3000);
     return () => clearTimeout(t);
   }, [statusText]);
 
-  /* Detect standalone / install events (Android + iOS guidance) */
+  /* ---------- Install prompt handling ---------- */
   useEffect(() => {
     const standalone =
       window.matchMedia?.("(display-mode: standalone)")?.matches ||
@@ -145,13 +145,16 @@ export default function App() {
     }
   }
 
-  /* Auto-refresh when back online */
+  /* ---------- Auto-refresh on reconnect ---------- */
   useEffect(() => {
     (async () => {
       if (isOnline && lastRequestRef.current) {
         try {
           setIsSyncing(true);
-          const { data } = await fetchWithCacheFallback(lastRequestRef.current, "weather-api-cache");
+          const { data } = await fetchWithCacheFallback(
+            lastRequestRef.current,
+            "weather-api-cache"
+          );
           setWeather(data);
           setFromCache(false);
           setStatusText("Back online — updated");
@@ -167,7 +170,7 @@ export default function App() {
     })();
   }, [isOnline]);
 
-  /* --- Free Open-Meteo Geocode API --- */
+  /* ---------- Free Open-Meteo Geocoder ---------- */
   async function geocodeCity(name) {
     const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
       name
@@ -178,20 +181,33 @@ export default function App() {
     return { lat: r.latitude, lon: r.longitude };
   }
 
-  /* --- Free Open-Meteo Weather API --- */
+  /* ---------- Free Open-Meteo Weather (Fixed timezone + nearest cell) ---------- */
   async function loadWeatherByCoords(lat, lon) {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&timezone=Asia/Kolkata&cell_selection=nearest`;
     lastRequestRef.current = url;
+    console.log("Fetching weather from:", url);
 
-    setStatusText(isOnline ? "Fetching latest…" : "Offline: showing last saved data if available");
+    setStatusText(isOnline ? "Fetching latest…" : "Offline: showing cached");
     setIsSyncing(true);
 
     try {
-      const { data, fromCache: cached } = await fetchWithCacheFallback(url, "weather-api-cache");
+      const { data, fromCache: cached } = await fetchWithCacheFallback(
+        url,
+        "weather-api-cache"
+      );
       setWeather(data);
       setFromCache(cached);
-      localStorage.setItem("lastWeather", JSON.stringify({ url, payload: data, ts: Date.now() }));
-      setStatusText(!isOnline ? "Offline: showing last saved data" : cached ? "Loaded from cache" : "Live update");
+      localStorage.setItem(
+        "lastWeather",
+        JSON.stringify({ url, payload: data, ts: Date.now() })
+      );
+      setStatusText(
+        !isOnline
+          ? "Offline: showing saved data"
+          : cached
+          ? "Loaded from cache"
+          : "Live update"
+      );
       setLastUpdated(Date.now());
     } catch {
       const last = localStorage.getItem("lastWeather");
@@ -202,36 +218,44 @@ export default function App() {
         setStatusText("Loaded last result (local)");
         setLastUpdated(ts || Date.now());
       } else {
-        setStatusText(!isOnline ? "Offline & no saved data yet" : "Couldn’t load weather");
+        setStatusText(
+          !isOnline ? "Offline & no saved data yet" : "Couldn’t load weather"
+        );
       }
     } finally {
       setIsSyncing(false);
     }
   }
 
-  /* Manual refresh */
+  /* ---------- Manual refresh ---------- */
   async function refreshWeather() {
     if (!lastRequestRef.current) return;
     setIsSyncing(true);
     try {
-      const { data } = await fetchWithCacheFallback(lastRequestRef.current, "weather-api-cache");
+      const { data } = await fetchWithCacheFallback(
+        lastRequestRef.current,
+        "weather-api-cache"
+      );
       setWeather(data);
       setFromCache(false);
       setStatusText("Live update");
       setLastUpdated(Date.now());
     } catch {
-      setStatusText(isOnline ? "Couldn’t refresh" : "Offline — using saved data");
+      setStatusText(
+        isOnline ? "Couldn’t refresh" : "Offline — using saved data"
+      );
     } finally {
       setIsSyncing(false);
     }
   }
 
-  /* Search submit */
+  /* ---------- Search Submit ---------- */
   async function onSearch(e) {
     e.preventDefault();
     if (!query.trim()) return;
     try {
       const { lat, lon } = await geocodeCity(query.trim());
+      console.log("Geocoded", query, "→", lat, lon);
       await loadWeatherByCoords(lat, lon);
     } catch (err) {
       setStatusText(err.message || "Search failed");
@@ -275,7 +299,7 @@ export default function App() {
         <form onSubmit={onSearch} className="flex gap-3">
           <input
             className="flex-1 h-12 rounded-xl px-4 text-gray-900 placeholder-gray-500 outline-none bg-white/90 dark:bg-white/80"
-            placeholder="Search city (e.g., Hyderabad)"
+            placeholder="Search city (e.g., Kochi, Hyderabad)"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -288,45 +312,38 @@ export default function App() {
         <div className="mt-6 bg-white/80 dark:bg-white/10 backdrop-blur rounded-2xl p-5 shadow-xl ring-1 ring-black/5 dark:ring-white/10">
           {weather ? (
             <>
-              <div className="text-5xl font-extrabold">{Math.round(tempC)}°C</div>
+              <div className="text-5xl font-extrabold">
+                {Math.round(tempC)}°C
+              </div>
               <div className="mt-2 opacity-90 text-sm">
-                Wind: {weather?.current_weather?.windspeed ?? "--"} km/h · Direction:{" "}
+                Wind: {weather?.current_weather?.windspeed ?? "--"} km/h · Dir:{" "}
                 {weather?.current_weather?.winddirection ?? "--"}°
               </div>
 
               <div className="mt-3 flex items-center gap-3 text-xs opacity-75">
-                <span>Updated: {lastUpdated ? new Date(lastUpdated).toLocaleString() : "—"}</span>
+                <span>
+                  Updated:{" "}
+                  {lastUpdated ? new Date(lastUpdated).toLocaleString() : "—"}
+                </span>
                 <button
                   onClick={refreshWeather}
                   className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white transition"
                 >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    className={`h-4 w-4 ${isSyncing ? "animate-spin" : ""}`}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <polyline points="23 4 23 10 17 10" />
-                    <polyline points="1 20 1 14 7 14" />
-                    <path d="M3.51 9a9 9 0 0114.13-3.36L23 10" />
-                    <path d="M20.49 15A9 9 0 016.36 18.36L1 14" />
-                  </svg>
-                  {isSyncing ? "Syncing…" : "Refresh"}
+                  🔄 {isSyncing ? "Syncing…" : "Refresh"}
                 </button>
-                {fromCache && <span className="italic">Showing cached data</span>}
+                {fromCache && (
+                  <span className="italic">Showing cached data</span>
+                )}
               </div>
             </>
           ) : (
-            <div className="opacity-80">Try: Visakhapatnam, Hyderabad, Delhi…</div>
+            <div className="opacity-80">
+              Try: Kochi, Hyderabad, Delhi, Mumbai…
+            </div>
           )}
         </div>
       </div>
 
-      {/* iOS Add-to-Home-Screen tip */}
       {showIosTip && !isStandalone && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 px-3 py-2 rounded-lg text-xs bg-black/70 text-white shadow-md">
           iOS: Tap <span className="font-semibold">Share</span> →{" "}
