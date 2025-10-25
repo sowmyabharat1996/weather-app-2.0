@@ -97,18 +97,37 @@ export default function App() {
 
   /* ---------- Accurate global geocoding ---------- */
   async function geocodeCity(name) {
-    const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
-      name
-    )}&key=${GEOCODE_KEY}&limit=1&language=en`;
-    const { data } = await fetchWithCacheFallback(url, "geo-cache");
-    if (!data?.results?.length) throw new Error("City not found");
+    async function geocodeCity(name) {
+  const GEOCODE_KEY = "YOUR_OPENCAGE_KEY_HERE"; // optional
 
-    const r = data.results[0];
-    const { lat, lng } = r.geometry;
-    const country = r.components?.country_code?.toUpperCase() || "";
-    console.log("Resolved:", name, "→", lat, lng, country);
-    return { lat, lon: lng, country };
+  // 1️⃣ Try OpenCage (more precise)
+  if (GEOCODE_KEY && GEOCODE_KEY !== "YOUR_OPENCAGE_KEY_HERE") {
+    try {
+      const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
+        name
+      )}&key=${GEOCODE_KEY}&limit=1&language=en`;
+      const { data } = await fetchWithCacheFallback(url, "geo-cache");
+      if (data?.results?.length) {
+        const r = data.results[0];
+        const { lat, lng } = r.geometry;
+        const country = r.components?.country_code?.toUpperCase() || "";
+        return { lat, lon: lng, country };
+      }
+    } catch (e) {
+      console.warn("OpenCage failed, falling back to Open-Meteo", e.message);
+    }
   }
+
+  // 2️⃣ Fallback → Open-Meteo geocoding (no key)
+  const fallbackUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+    name
+  )}&count=1&language=en&format=json`;
+  const { data } = await fetchWithCacheFallback(fallbackUrl, "geocoding-cache");
+  if (!data?.results?.length) throw new Error("City not found");
+  const r = data.results[0];
+  return { lat: r.latitude, lon: r.longitude, country: r.country_code };
+}
+
 
   /* ---------- Weather fetch with sanity checks ---------- */
   async function loadWeatherByCoords(lat, lon, country) {
