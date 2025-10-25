@@ -172,16 +172,23 @@ export default function App() {
 
   /* ---------- Free Open-Meteo Geocoder ---------- */
  /* --- Smarter Geocode with Kerala fix --- */
+/* --- Smart geocode with Indian-state fallback --- */
 async function geocodeCity(name) {
   const normalized = name.trim().toLowerCase();
 
-  // 🔧 Smart fallbacks for vague names
+  // Common state-level fallbacks → major coastal or capital cities
   const aliases = {
     kerala: { lat: 9.94, lon: 76.26, note: "→ Kochi (Kerala)" },
-    india: { lat: 28.61, lon: 77.21, note: "→ New Delhi (India)" },
+    goa: { lat: 15.49, lon: 73.83, note: "→ Panaji (Goa)" },
     tamilnadu: { lat: 13.08, lon: 80.27, note: "→ Chennai (Tamil Nadu)" },
     telangana: { lat: 17.38, lon: 78.48, note: "→ Hyderabad (Telangana)" },
     andhrapradesh: { lat: 17.68, lon: 83.21, note: "→ Visakhapatnam (Andhra Pradesh)" },
+    maharashtra: { lat: 18.96, lon: 72.82, note: "→ Mumbai (Maharashtra)" },
+    gujarat: { lat: 23.03, lon: 72.58, note: "→ Ahmedabad (Gujarat)" },
+    karnataka: { lat: 12.97, lon: 77.59, note: "→ Bengaluru (Karnataka)" },
+    odisha: { lat: 20.27, lon: 85.84, note: "→ Bhubaneswar (Odisha)" },
+    rajasthan: { lat: 26.91, lon: 75.79, note: "→ Jaipur (Rajasthan)" },
+    delhi: { lat: 28.61, lon: 77.21, note: "→ New Delhi" },
   };
 
   if (aliases[normalized]) {
@@ -190,7 +197,7 @@ async function geocodeCity(name) {
     return { lat, lon };
   }
 
-  // Regular Open-Meteo geocode fallback
+  // Default Open-Meteo geocode
   const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
     name
   )}&count=1&language=en&format=json`;
