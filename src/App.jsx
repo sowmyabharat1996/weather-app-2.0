@@ -171,15 +171,36 @@ export default function App() {
   }, [isOnline]);
 
   /* ---------- Free Open-Meteo Geocoder ---------- */
-  async function geocodeCity(name) {
-    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
-      name
-    )}&count=1&language=en&format=json`;
-    const { data } = await fetchWithCacheFallback(url, "geocoding-cache");
-    if (!data?.results?.length) throw new Error("City not found");
-    const r = data.results[0];
-    return { lat: r.latitude, lon: r.longitude };
+ /* --- Smarter Geocode with Kerala fix --- */
+async function geocodeCity(name) {
+  const normalized = name.trim().toLowerCase();
+
+  // 🔧 Smart fallbacks for vague names
+  const aliases = {
+    kerala: { lat: 9.94, lon: 76.26, note: "→ Kochi (Kerala)" },
+    india: { lat: 28.61, lon: 77.21, note: "→ New Delhi (India)" },
+    tamilnadu: { lat: 13.08, lon: 80.27, note: "→ Chennai (Tamil Nadu)" },
+    telangana: { lat: 17.38, lon: 78.48, note: "→ Hyderabad (Telangana)" },
+    andhrapradesh: { lat: 17.68, lon: 83.21, note: "→ Visakhapatnam (Andhra Pradesh)" },
+  };
+
+  if (aliases[normalized]) {
+    const { lat, lon, note } = aliases[normalized];
+    console.log(`Smart geocode: ${name} ${note}`);
+    return { lat, lon };
   }
+
+  // Regular Open-Meteo geocode fallback
+  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+    name
+  )}&count=1&language=en&format=json`;
+
+  const { data } = await fetchWithCacheFallback(url, "geocoding-cache");
+  if (!data?.results?.length) throw new Error("City not found");
+  const r = data.results[0];
+  return { lat: r.latitude, lon: r.longitude };
+}
+
 
   /* ---------- Free Open-Meteo Weather (Fixed timezone + nearest cell) ---------- */
   async function loadWeatherByCoords(lat, lon) {
